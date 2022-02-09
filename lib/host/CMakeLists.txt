@@ -2,3 +2,4 @@
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 add_subdirectory(wasi)
+add_subdirectory(host_function_example)

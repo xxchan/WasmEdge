@@ -5,6 +5,7 @@
 #include "common/filesystem.h"
 #include "common/types.h"
 #include "common/version.h"
+#include "host/host_function_example/examplemodule.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
@@ -217,6 +218,10 @@ int main(int Argc, const char *Argv[]) {
   Conf.addHostRegistration(WasmEdge::HostRegistration::WasmEdge_Process);
   const auto InputPath = std::filesystem::absolute(SoName.value());
   WasmEdge::VM::VM VM(Conf);
+
+  // Register your module in VM.
+  WasmEdge::Host::HostFuncExampleModule ExampleMod;
+  VM.registerModule(ExampleMod);
 
   WasmEdge::Host::WasiModule *WasiMod =
       dynamic_cast<WasmEdge::Host::WasiModule *>(

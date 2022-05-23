@@ -75,6 +75,8 @@ int Compiler([[maybe_unused]] int Argc,
       PO::Description("Enable Extended-const proposal"sv));
   PO::Option<PO::Toggle> PropThreads(
       PO::Description("Enable Threads proposal"sv));
+  PO::Option<PO::Toggle> PropExceptionHandling(
+      PO::Description("Enable Exception handling proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
   PO::Option<std::string> PropOptimizationLevel(
       PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
@@ -101,6 +103,7 @@ int Compiler([[maybe_unused]] int Argc,
            .add_option("enable-tail-call"sv, PropTailCall)
            .add_option("enable-extended-const"sv, PropExtendConst)
            .add_option("enable-threads"sv, PropThreads)
+           .add_option("enable-exceptions"sv, PropExceptionHandling)
            .add_option("enable-all"sv, PropAll)
            .add_option("optimize"sv, PropOptimizationLevel)
            .parse(stdout, Argc, Argv)) {
@@ -145,11 +148,15 @@ int Compiler([[maybe_unused]] int Argc,
   if (PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
+  if (PropExceptionHandling.value())) {
+    Conf.addProposal(Proposal::ExceptionHandling);
+  }
   if (PropAll.value()) {
     Conf.addProposal(Proposal::MultiMemories);
     Conf.addProposal(Proposal::TailCall);
     Conf.addProposal(Proposal::ExtendedConst);
     Conf.addProposal(Proposal::Threads);
+    Conf.addProposal(Proposal::ExceptionHandling);
   }
 
   if (PropOptimizationLevel.value() == "0") {

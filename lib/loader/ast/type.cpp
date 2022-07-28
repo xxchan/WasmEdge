@@ -210,5 +210,21 @@ Expect<void> Loader::loadType(AST::GlobalType &GlobType) {
   return {};
 }
 
+// Load binary to construct ExceptionType node. See "include/loader/loader.h".
+Expect<void> Loader::loadType(AST::ExceptionType &ExnType) {
+  // Read the checking byte.
+  if (auto Res = FMgr.readByte()) {
+    if (*Res != 0x00U) {
+      return logLoadError(ErrCode::ExpectedZeroByte, FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_Exception);
+    }
+  } else {
+    return logLoadError(Res.error(), FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Exception);
+  }
+
+  return {};
+}
+
 } // namespace Loader
 } // namespace WasmEdge

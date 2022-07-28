@@ -69,6 +69,16 @@ struct FuncRef {
   FuncRef(const Runtime::Instance::FunctionInstance *P) : Ptr(P) {}
 };
 
+/// ExnRef definition.
+struct ExnRef {
+#if __INTPTR_WIDTH__ == 32
+  const uint32_t Padding = -1;
+#endif
+  const Runtime::Instance::FunctionInstance *Ptr = nullptr;
+  ExnRef() = default;
+  ExnRef(const Runtime::Instance::FunctionInstance *P) : Ptr(P) {}
+}
+
 /// ExternRef definition.
 struct ExternRef {
 #if __INTPTR_WIDTH__ == 32
@@ -80,7 +90,7 @@ struct ExternRef {
 };
 
 /// NumType and RefType variant definitions.
-using RefVariant = Variant<UnknownRef, FuncRef, ExternRef>;
+using RefVariant = Variant<UnknownRef, FuncRef, ExnRef, ExternRef>;
 using ValVariant =
     Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,

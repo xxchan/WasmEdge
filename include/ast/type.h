@@ -206,5 +206,23 @@ private:
   /// @}
 };
 
+/// AST ExceptionType node.
+class ExceptionType {
+public:
+  /// Constructors.
+  ExceptionType() noexcept : Type(nullptr) {}
+  ExceptionType(FunctionType *FType) noexcept : Type(FType) {}
+
+  /// Getter and setter of function type.
+  const FunctionType *getFuncType() const noexcept { return Type; }
+  void setFuncType(FunctionType *FType) noexcept { Type = FType; }
+
+private:
+  /// \name Data of GlobalType.
+  /// @{
+  FunctionType *Type;
+  /// @}
+};
+
 } // namespace AST
 } // namespace WasmEdge

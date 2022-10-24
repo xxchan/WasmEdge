@@ -39,6 +39,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-error=old-style-cast
     -Wno-error=unused-command-line-argument
     -Wno-error=unknown-warning-option
+    -Wno-error=deprecated
     -Wno-ctad-maybe-unsupported
     -Wno-gnu-anonymous-struct
     -Wno-keyword-macro

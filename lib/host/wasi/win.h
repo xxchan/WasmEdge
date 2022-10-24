@@ -18,16 +18,30 @@
 #include <cerrno>
 #include <chrono>
 #include <fcntl.h>
-#include <io.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <winsock2.h>
+
+#if !defined(BOOST_USE_WINDOWS_H)
+using HRESULT = int32_t;
+using SOCKET = boost::winapi::UINT_PTR_;
+static inline constexpr bool SUCCEEDED(HRESULT hr) noexcept { return hr >= 0; }
+#else
+#include <Winerror.h>
+#endif
+
+namespace boost::winapi {
+using HRESULT_ = ::HRESULT;
+using SOCKET_ = ::SOCKET;
+static inline constexpr bool Succeeded(HRESULT_ hr) noexcept {
+  return SUCCEEDED(hr);
+}
 
 #if !defined(BOOST_USE_WINDOWS_H)
 extern "C" {
 struct _UNICODE_STRING;
 struct _OBJECT_ATTRIBUTES;
 struct _IO_STATUS_BLOCK;
+struct _FILE_BASIC_INFO;
 
 BOOST_WINAPI_IMPORT boost::winapi::NTSTATUS_ BOOST_WINAPI_WINAPI_CC NtOpenFile(
     boost::winapi::PHANDLE_ FileHandle,
@@ -37,9 +51,51 @@ BOOST_WINAPI_IMPORT boost::winapi::NTSTATUS_ BOOST_WINAPI_WINAPI_CC NtOpenFile(
 
 BOOST_WINAPI_IMPORT boost::winapi::HANDLE_ BOOST_WINAPI_WINAPI_CC
 GetStdHandle(boost::winapi::DWORD_ nStdHandle);
+
+BOOST_WINAPI_IMPORT boost::winapi::HRESULT_ BOOST_WINAPI_WINAPI_CC
+PathCchCombine(boost::winapi::LPWSTR_ pszPathOut, size_t cchPathOut,
+               boost::winapi::LPCWSTR_ pszPathIn,
+               boost::winapi::LPCWSTR_ pszMore);
+
+BOOST_WINAPI_IMPORT boost::winapi::BOOL_ BOOST_WINAPI_WINAPI_CC
+PathIsDirectoryW(boost::winapi::LPCWSTR_ pszPath);
+
+BOOST_WINAPI_IMPORT boost::winapi::BOOL_ BOOST_WINAPI_WINAPI_CC
+PathIsRelativeA(boost::winapi::LPCSTR_ pszPath);
+
+BOOST_WINAPI_IMPORT boost::winapi::DWORD_ BOOST_WINAPI_WINAPI_CC
+GetFinalPathNameByHandleW(boost::winapi::HANDLE_ hFile,
+                          boost::winapi::LPWSTR_ lpszFilePath,
+                          boost::winapi::DWORD_ cchFilePath,
+                          boost::winapi::DWORD_ dwFlags);
+BOOST_WINAPI_IMPORT boost::winapi::DWORD_ BOOST_WINAPI_WINAPI_CC
+GetFileType(boost::winapi::HANDLE_ hFile);
+
+BOOST_WINAPI_IMPORT boost::winapi::BOOL_ BOOST_WINAPI_WINAPI_CC
+GetNamedPipeInfo(boost::winapi::HANDLE_ hNamedPipe,
+                 boost::winapi::LPDWORD_ lpFlags,
+                 boost::winapi::LPDWORD_ lpOutBufferSize,
+                 boost::winapi::LPDWORD_ lpInBufferSize,
+                 boost::winapi::LPDWORD_ lpMaxInstances);
+
+BOOST_WINAPI_IMPORT boost::winapi::BOOL_ BOOST_WINAPI_WINAPI_CC
+GetFileInformationByHandleEx(
+    boost::winapi::HANDLE_ hFile,
+    boost::winapi::FILE_INFO_BY_HANDLE_CLASS_ FileInformationClass,
+    boost::winapi::LPVOID_ lpFileInformation,
+    boost::winapi::DWORD_ dwBufferSize);
 }
 #else
+#include <fileapi.h>
+#include <io.h>
+#include <minwinbase.h>
+#include <namedpipeapi.h>
+#include <pathcch.h>
+#include <shlwapi.h>
+#include <winbase.h>
+#include <winsock2.h>
 #include <winternl.h>
+#include <ws2tcpip.h>
 #endif
 
 namespace boost::winapi {
@@ -67,14 +123,26 @@ typedef struct BOOST_MAY_ALIAS _IO_STATUS_BLOCK {
   ULONG_PTR_ Information;
 } IO_STATUS_BLOCK_, *PIO_STATUS_BLOCK_;
 
+typedef struct BOOST_MAY_ALIAS _FILE_BASIC_INFO {
+  LARGE_INTEGER_ CreationTime;
+  LARGE_INTEGER_ LastAccessTime;
+  LARGE_INTEGER_ LastWriteTime;
+  LARGE_INTEGER_ ChangeTime;
+  DWORD_ FileAttributes;
+} FILE_BASIC_INFO_, *PFILE_BASIC_INFO_;
+
 #if defined(BOOST_USE_WINDOWS_H)
 BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = STD_INPUT_HANDLE;
 BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = STD_OUTPUT_HANDLE;
 BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = STD_ERROR_HANDLE;
+BOOST_CONSTEXPR_OR_CONST DWORD_ FILE_NAME_NORMALIZED_ = FILE_NAME_NORMALIZED;
+BOOST_CONSTEXPR_OR_CONST DWORD_ FILE_TYPE_PIPE_ = FILE_TYPE_PIPE;
 #else
 BOOST_CONSTEXPR_OR_CONST DWORD_ STD_INPUT_HANDLE_ = static_cast<DWORD_>(-10);
 BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = static_cast<DWORD_>(-11);
 BOOST_CONSTEXPR_OR_CONST DWORD_ STD_ERROR_HANDLE_ = static_cast<DWORD_>(-12);
+BOOST_CONSTEXPR_OR_CONST DWORD_ FILE_NAME_NORMALIZED_ = 0x0;
+BOOST_CONSTEXPR_OR_CONST DWORD_ FILE_TYPE_PIPE_ = 0x3;
 #endif
 
 BOOST_FORCEINLINE NTSTATUS_ NtOpenFile(PHANDLE_ FileHandle,
@@ -89,9 +157,13 @@ BOOST_FORCEINLINE NTSTATUS_ NtOpenFile(PHANDLE_ FileHandle,
       OpenOptions);
 }
 
-BOOST_FORCEINLINE HANDLE_ GetStdHandle(DWORD_ nStdHandle) {
-  return ::GetStdHandle(nStdHandle);
-}
+using ::GetFileType;
+using ::GetFinalPathNameByHandleW;
+using ::GetNamedPipeInfo;
+using ::GetStdHandle;
+using ::PathCchCombine;
+using ::PathIsDirectoryW;
+using ::PathIsRelativeA;
 
 } // namespace boost::winapi
 

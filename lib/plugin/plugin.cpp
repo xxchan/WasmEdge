@@ -13,10 +13,69 @@
 #include <pwd.h>
 #include <unistd.h>
 #elif WASMEDGE_OS_WINDOWS
-#include <windows.h>
 
+#include <boost/winapi/basic_types.hpp>
+#if !defined(BOOST_USE_WINDOWS_H)
+extern "C" {
+using HRESULT = int32_t;
+static inline constexpr bool SUCCEEDED(HRESULT hr) noexcept { return hr >= 0; }
+struct _GUID;
+}
+#else
+#include <Winerror.h>
+#endif
+
+namespace boost::winapi {
+using HRESULT_ = ::HRESULT;
+static inline constexpr bool Succeeded(HRESULT_ hr) noexcept {
+  return SUCCEEDED(hr);
+}
+typedef struct BOOST_MAY_ALIAS _GUID {
+  ULONG_ Data1;
+  USHORT_ Data2;
+  USHORT_ Data3;
+  UCHAR_ Data4[8];
+} GUID_;
+
+} // namespace boost::winapi
+
+#if !defined(BOOST_USE_WINDOWS_H)
+extern "C" {
+
+#if defined(INITGUID) || defined(INITKNOWNFOLDERS)
+#define DEFINE_KNOWN_FOLDER(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8)   \
+  extern "C" const struct _GUID __declspec(selectany)                          \
+      name = {l, w1, w2, {b1, b2, b3, b4, b5, b6, b7, b8}}
+#else
+#define DEFINE_KNOWN_FOLDER(name, l, w1, w2, b1, b2, b3, b4, b5, b6, b7, b8)   \
+  extern "C" const struct _GUID name
+#endif
+DEFINE_KNOWN_FOLDER(FOLDERID_Profile, 0x5E6C858F, 0x0E22, 0x4760, 0x9A, 0xFE,
+                    0xEA, 0x33, 0x17, 0xB6, 0x71, 0x73);
+#undef DEFINE_KNOWN_FOLDER
+
+BOOST_WINAPI_IMPORT boost::winapi::HRESULT_ BOOST_WINAPI_WINAPI_CC
+SHGetKnownFolderPath(const boost::winapi::GUID_ &rfid,
+                     boost::winapi::DWORD_ dwFlags,
+                     boost::winapi::HANDLE_ hToken,
+                     boost::winapi::LPWSTR_ *ppszPath);
+BOOST_WINAPI_IMPORT void BOOST_WINAPI_WINAPI_CC
+CoTaskMemFree(boost::winapi::LPVOID_ pv);
+}
+#else
 #include <KnownFolders.h>
 #include <ShlObj.h>
+#endif
+
+namespace boost::winapi {
+using ::CoTaskMemFree;
+using ::FOLDERID_Profile;
+BOOST_FORCEINLINE HRESULT_ SHGetKnownFolderPath(const GUID_ &rfid,
+                                                DWORD_ dwFlags, HANDLE_ hToken,
+                                                LPWSTR_ *ppszPath) {
+  return ::SHGetKnownFolderPath(rfid, dwFlags, hToken, ppszPath);
+}
+} // namespace boost::winapi
 #endif
 
 namespace WasmEdge {
@@ -287,11 +346,11 @@ std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
     Home = std::filesystem::u8path(HomeEnv);
   } else {
     wchar_t *Path = nullptr;
-    if (HRESULT Res =
-            ::SHGetKnownFolderPath(FOLDERID_Profile, 0, nullptr, &Path);
-        SUCCEEDED(Res)) {
+    if (boost::winapi::HRESULT_ Res = boost::winapi::SHGetKnownFolderPath(
+            boost::winapi::FOLDERID_Profile, 0, nullptr, &Path);
+        boost::winapi::Succeeded(Res)) {
       Home = std::filesystem::path(Path);
-      ::CoTaskMemFree(Path);
+      boost::winapi::CoTaskMemFree(Path);
     }
   }
   Result.push_back(Home / std::filesystem::u8path(".wasmedge"sv) /

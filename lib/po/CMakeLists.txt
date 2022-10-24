@@ -8,4 +8,5 @@ wasmedge_add_library(wasmedgePO
 target_link_libraries(wasmedgePO
   PUBLIC
   wasmedgeCommon
+  Boost::boost
 )

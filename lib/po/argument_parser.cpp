@@ -8,7 +8,33 @@
 
 // For enabling Windows PowerShell color support.
 #if WASMEDGE_OS_WINDOWS
-#include <windows.h>
+#include <boost/winapi/basic_types.hpp>
+#include <boost/winapi/handles.hpp>
+
+#if !defined(BOOST_USE_WINDOWS_H)
+extern "C" {
+BOOST_SYMBOL_IMPORT boost::winapi::HANDLE_ BOOST_WINAPI_WINAPI_CC
+GetStdHandle(boost::winapi::DWORD_ nStdHandle);
+BOOST_SYMBOL_IMPORT boost::winapi::BOOL_ BOOST_WINAPI_WINAPI_CC GetConsoleMode(
+    boost::winapi::HANDLE_ hConsoleHandle, boost::winapi::LPDWORD_ lpMode);
+BOOST_SYMBOL_IMPORT boost::winapi::BOOL_ BOOST_WINAPI_WINAPI_CC SetConsoleMode(
+    boost::winapi::HANDLE_ hConsoleHandle, boost::winapi::DWORD_ lpMode);
+}
+#endif
+
+namespace boost::winapi {
+#if defined(BOOST_USE_WINDOWS_H)
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = STD_OUTPUT_HANDLE;
+BOOST_CONSTEXPR_OR_CONST DWORD_ ENABLE_VIRTUAL_TERMINAL_PROCESSING_ =
+    ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+#else
+BOOST_CONSTEXPR_OR_CONST DWORD_ STD_OUTPUT_HANDLE_ = static_cast<DWORD_>(-11);
+BOOST_CONSTEXPR_OR_CONST DWORD_ ENABLE_VIRTUAL_TERMINAL_PROCESSING_ = 0x0004;
+#endif
+using ::GetConsoleMode;
+using ::GetStdHandle;
+using ::SetConsoleMode;
+} // namespace boost::winapi
 #endif
 
 namespace WasmEdge {
@@ -162,12 +188,13 @@ void ArgumentParser::SubCommandDescriptor::usage(
 void ArgumentParser::SubCommandDescriptor::help(std::FILE *Out) const noexcept {
 // For enabling Windows PowerShell color support.
 #if WASMEDGE_OS_WINDOWS
-  HANDLE OutputHandler = ::GetStdHandle(STD_OUTPUT_HANDLE);
-  if (OutputHandler != INVALID_HANDLE_VALUE) {
-    DWORD ConsoleMode = 0;
-    if (::GetConsoleMode(OutputHandler, &ConsoleMode)) {
-      ConsoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-      ::SetConsoleMode(OutputHandler, ConsoleMode);
+  boost::winapi::HANDLE_ OutputHandler =
+      boost::winapi::GetStdHandle(boost::winapi::STD_OUTPUT_HANDLE_);
+  if (OutputHandler != boost::winapi::INVALID_HANDLE_VALUE_) {
+    boost::winapi::DWORD_ ConsoleMode = 0;
+    if (boost::winapi::GetConsoleMode(OutputHandler, &ConsoleMode)) {
+      ConsoleMode |= boost::winapi::ENABLE_VIRTUAL_TERMINAL_PROCESSING_;
+      boost::winapi::SetConsoleMode(OutputHandler, ConsoleMode);
     }
   }
 #endif

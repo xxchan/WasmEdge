@@ -22,13 +22,7 @@
 
 #if WASMEDGE_OS_WINDOWS
 #include <boost/winapi/basic_types.hpp>
-
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
-#include <Pathcch.h>
-#include <Shlwapi.h>
-
+#include <boost/winapi/file_management.hpp>
 #endif
 
 #if WASMEDGE_OS_LINUX
@@ -666,7 +660,7 @@ public:
   using HandleHolder::HandleHolder;
 
 private:
-  mutable std::optional<BY_HANDLE_FILE_INFORMATION> FileInfo;
+  mutable std::optional<boost::winapi::_BY_HANDLE_FILE_INFORMATION> FileInfo;
   mutable std::optional<__wasi_oflags_t> SavedOpenFlags;
   mutable std::optional<__wasi_fdflags_t> SavedFdFlags;
   mutable std::optional<uint8_t> SavedVFSFlags;

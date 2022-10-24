@@ -13,8 +13,6 @@
 #include <boost/align/aligned_allocator.hpp>
 #include <new>
 #include <vector>
-#include <winsock2.h>
-#include <ws2tcpip.h>
 
 #define NANOSECONDS_PER_TICK 100ULL
 #define TICKS_PER_SECOND 10000000ULL
@@ -85,7 +83,7 @@ namespace {
 
 namespace winapi = boost::winapi;
 
-const LARGE_INTEGER ZERO_OFFSET = {.LowPart = 0, .HighPart = 0};
+const winapi::LARGE_INTEGER_ ZERO_OFFSET = {.LowPart = 0, .HighPart = 0};
 
 inline constexpr __wasi_size_t
 calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) {
@@ -98,14 +96,14 @@ calculateAddrinfoLinkedListSize(struct addrinfo *const Addrinfo) {
 };
 
 static bool isSocket(LPVOID H) {
-  if (likely(::GetFileType(H) != FILE_TYPE_PIPE)) {
+  if (likely(winapi::GetFileType(H) != winapi::FILE_TYPE_PIPE_)) {
     return false;
   }
-  return !::GetNamedPipeInfo(H, nullptr, nullptr, nullptr, nullptr);
+  return !winapi::GetNamedPipeInfo(H, nullptr, nullptr, nullptr, nullptr);
 }
 
-static SOCKET toSocket(boost::winapi::HANDLE_ H) {
-  return reinterpret_cast<SOCKET>(H);
+static winapi::SOCKET_ toSocket(winapi::HANDLE_ H) {
+  return reinterpret_cast<winapi::SOCKET_>(H);
 }
 
 std::pair<const char *, std::unique_ptr<char[]>>
@@ -125,8 +123,9 @@ createNullTerminatedString(std::string_view View) noexcept {
   return {CStr, std::move(Buffer)};
 }
 
-inline LARGE_INTEGER toLargeIntegerFromUnsigned(unsigned long long Value) {
-  LARGE_INTEGER Result;
+inline winapi::LARGE_INTEGER_
+toLargeIntegerFromUnsigned(unsigned long long Value) {
+  winapi::LARGE_INTEGER_ Result;
 
   // Does the compiler natively support 64-bit integers?
 #ifdef INT64_MAX
@@ -138,8 +137,8 @@ inline LARGE_INTEGER toLargeIntegerFromUnsigned(unsigned long long Value) {
   return Result;
 }
 
-inline LARGE_INTEGER toLargeIntegerFromSigned(long long Value) {
-  LARGE_INTEGER Result;
+inline winapi::LARGE_INTEGER_ toLargeIntegerFromSigned(long long Value) {
+  winapi::LARGE_INTEGER_ Result;
 
 #ifdef INT64_MAX
   Result.QuadPart = static_cast<int>(Value);
@@ -150,219 +149,219 @@ inline LARGE_INTEGER toLargeIntegerFromSigned(long long Value) {
   return Result;
 }
 
-inline constexpr __wasi_errno_t fromWinError(DWORD Winerr) {
+inline constexpr __wasi_errno_t fromWinError(winapi::DWORD_ Winerr) {
   __wasi_errno_t Error = __WASI_ERRNO_NOSYS;
   switch (Winerr) {
-  case ERROR_ACCESS_DENIED:
-  case ERROR_ACCOUNT_DISABLED:
-  case ERROR_ACCOUNT_RESTRICTION:
-  case ERROR_CANNOT_MAKE:
-  case ERROR_CURRENT_DIRECTORY:
-  case ERROR_INVALID_ACCESS:
-  case ERROR_INVALID_LOGON_HOURS:
-  case ERROR_INVALID_WORKSTATION:
-  case ERROR_LOGON_FAILURE:
-  case ERROR_NO_SUCH_PRIVILEGE:
-  case ERROR_PASSWORD_EXPIRED:
-  case ERROR_CANT_ACCESS_FILE:
-  case ERROR_NOACCESS:
-  case WSAEACCES:
-  case ERROR_ELEVATION_REQUIRED:
+  case winapi::ERROR_ACCESS_DENIED_:
+  case winapi::ERROR_ACCOUNT_DISABLED_:
+  case winapi::ERROR_ACCOUNT_RESTRICTION_:
+  case winapi::ERROR_CANNOT_MAKE_:
+  case winapi::ERROR_CURRENT_DIRECTORY_:
+  case winapi::ERROR_INVALID_ACCESS_:
+  case winapi::ERROR_INVALID_LOGON_HOURS_:
+  case winapi::ERROR_INVALID_WORKSTATION_:
+  case winapi::ERROR_LOGON_FAILURE_:
+  case winapi::ERROR_NO_SUCH_PRIVILEGE_:
+  case winapi::ERROR_PASSWORD_EXPIRED_:
+  case winapi::ERROR_CANT_ACCESS_FILE_:
+  case winapi::ERROR_NOACCESS_:
+  case winapi::WSAEACCES_:
+  case winapi::ERROR_ELEVATION_REQUIRED_:
     Error = __WASI_ERRNO_ACCES;
     break;
-  case ERROR_ALREADY_ASSIGNED:
-  case ERROR_BUSY_DRIVE:
-  case ERROR_DEVICE_IN_USE:
-  case ERROR_DRIVE_LOCKED:
-  case ERROR_LOCKED:
-  case ERROR_OPEN_FILES:
-  case ERROR_PATH_BUSY:
-  case ERROR_PIPE_BUSY:
-  case ERROR_BUSY:
-  case ERROR_LOCK_VIOLATION:
-  case ERROR_SHARING_VIOLATION:
+  case winapi::ERROR_ALREADY_ASSIGNED_:
+  case winapi::ERROR_BUSY_DRIVE_:
+  case winapi::ERROR_DEVICE_IN_USE_:
+  case winapi::ERROR_DRIVE_LOCKED_:
+  case winapi::ERROR_LOCKED_:
+  case winapi::ERROR_OPEN_FILES_:
+  case winapi::ERROR_PATH_BUSY_:
+  case winapi::ERROR_PIPE_BUSY_:
+  case winapi::ERROR_BUSY_:
+  case winapi::ERROR_LOCK_VIOLATION_:
+  case winapi::ERROR_SHARING_VIOLATION_:
     Error = __WASI_ERRNO_BUSY;
     break;
-  case ERROR_ALREADY_EXISTS:
-  case ERROR_FILE_EXISTS:
+  case winapi::ERROR_ALREADY_EXISTS_:
+  case winapi::ERROR_FILE_EXISTS_:
     Error = __WASI_ERRNO_EXIST;
     break;
-  case ERROR_ARITHMETIC_OVERFLOW:
+  case winapi::ERROR_ARITHMETIC_OVERFLOW_:
     Error = __WASI_ERRNO_RANGE;
     break;
-  case ERROR_BAD_COMMAND:
-  case ERROR_CANTOPEN:
-  case ERROR_CANTREAD:
-  case ERROR_CANTWRITE:
-  case ERROR_CRC:
-  case ERROR_DISK_CHANGE:
-  case ERROR_GEN_FAILURE:
-  case ERROR_INVALID_TARGET_HANDLE:
-  case ERROR_IO_DEVICE:
-  case ERROR_NO_MORE_SEARCH_HANDLES:
-  case ERROR_OPEN_FAILED:
-  case ERROR_READ_FAULT:
-  case ERROR_SEEK:
-  case ERROR_WRITE_FAULT:
-  case ERROR_BEGINNING_OF_MEDIA:
-  case ERROR_BUS_RESET:
-  case ERROR_DEVICE_DOOR_OPEN:
-  case ERROR_DEVICE_REQUIRES_CLEANING:
-  case ERROR_DISK_CORRUPT:
-  case ERROR_EOM_OVERFLOW:
-  case ERROR_INVALID_BLOCK_LENGTH:
-  case ERROR_NO_DATA_DETECTED:
-  case ERROR_NO_SIGNAL_SENT:
-  case ERROR_SETMARK_DETECTED:
-  case ERROR_SIGNAL_REFUSED:
-  case ERROR_FILEMARK_DETECTED:
+  case winapi::ERROR_BAD_COMMAND_:
+  case winapi::ERROR_CANTOPEN_:
+  case winapi::ERROR_CANTREAD_:
+  case winapi::ERROR_CANTWRITE_:
+  case winapi::ERROR_CRC_:
+  case winapi::ERROR_DISK_CHANGE_:
+  case winapi::ERROR_GEN_FAILURE_:
+  case winapi::ERROR_INVALID_TARGET_HANDLE_:
+  case winapi::ERROR_IO_DEVICE_:
+  case winapi::ERROR_NO_MORE_SEARCH_HANDLES_:
+  case winapi::ERROR_OPEN_FAILED_:
+  case winapi::ERROR_READ_FAULT_:
+  case winapi::ERROR_SEEK_:
+  case winapi::ERROR_WRITE_FAULT_:
+  case winapi::ERROR_BEGINNING_OF_MEDIA_:
+  case winapi::ERROR_BUS_RESET_:
+  case winapi::ERROR_DEVICE_DOOR_OPEN_:
+  case winapi::ERROR_DEVICE_REQUIRES_CLEANING_:
+  case winapi::ERROR_DISK_CORRUPT_:
+  case winapi::ERROR_EOM_OVERFLOW_:
+  case winapi::ERROR_INVALID_BLOCK_LENGTH_:
+  case winapi::ERROR_NO_DATA_DETECTED_:
+  case winapi::ERROR_NO_SIGNAL_SENT_:
+  case winapi::ERROR_SETMARK_DETECTED_:
+  case winapi::ERROR_SIGNAL_REFUSED_:
+  case winapi::ERROR_FILEMARK_DETECTED_:
     Error = __WASI_ERRNO_IO;
     break;
-  case ERROR_BAD_UNIT:
-  case ERROR_BAD_DEVICE:
-  case ERROR_DEV_NOT_EXIST:
-  case ERROR_FILE_INVALID:
-  case ERROR_INVALID_DRIVE:
-  case ERROR_UNRECOGNIZED_VOLUME:
+  case winapi::ERROR_BAD_UNIT_:
+  case winapi::ERROR_BAD_DEVICE_:
+  case winapi::ERROR_DEV_NOT_EXIST_:
+  case winapi::ERROR_FILE_INVALID_:
+  case winapi::ERROR_INVALID_DRIVE_:
+  case winapi::ERROR_UNRECOGNIZED_VOLUME_:
     Error = __WASI_ERRNO_NODEV;
     break;
-  case ERROR_BAD_DRIVER_LEVEL:
-  case ERROR_UNRECOGNIZED_MEDIA:
+  case winapi::ERROR_BAD_DRIVER_LEVEL_:
+  case winapi::ERROR_UNRECOGNIZED_MEDIA_:
     Error = __WASI_ERRNO_NXIO;
     break;
-  case ERROR_BAD_EXE_FORMAT:
-  case ERROR_BAD_FORMAT:
-  case ERROR_EXE_MARKED_INVALID:
-  case ERROR_INVALID_EXE_SIGNATURE:
+  case winapi::ERROR_BAD_EXE_FORMAT_:
+  case winapi::ERROR_BAD_FORMAT_:
+  case winapi::ERROR_EXE_MARKED_INVALID_:
+  case winapi::ERROR_INVALID_EXE_SIGNATURE_:
     Error = __WASI_ERRNO_NOEXEC;
     break;
-  case ERROR_BAD_USERNAME:
-  case ERROR_BAD_LENGTH:
-  case ERROR_ENVVAR_NOT_FOUND:
-  case ERROR_INVALID_DATA:
-  case ERROR_INVALID_FLAGS:
-  case ERROR_INVALID_NAME:
-  case ERROR_INVALID_OWNER:
-  case ERROR_INVALID_PARAMETER:
-  case ERROR_INVALID_PRIMARY_GROUP:
-  case ERROR_INVALID_SIGNAL_NUMBER:
-  case ERROR_MAPPED_ALIGNMENT:
-  case ERROR_NONE_MAPPED:
-  case ERROR_SYMLINK_NOT_SUPPORTED:
+  case winapi::ERROR_BAD_USERNAME_:
+  case winapi::ERROR_BAD_LENGTH_:
+  case winapi::ERROR_ENVVAR_NOT_FOUND_:
+  case winapi::ERROR_INVALID_DATA_:
+  case winapi::ERROR_INVALID_FLAGS_:
+  case winapi::ERROR_INVALID_NAME_:
+  case winapi::ERROR_INVALID_OWNER_:
+  case winapi::ERROR_INVALID_PARAMETER_:
+  case winapi::ERROR_INVALID_PRIMARY_GROUP_:
+  case winapi::ERROR_INVALID_SIGNAL_NUMBER_:
+  case winapi::ERROR_MAPPED_ALIGNMENT_:
+  case winapi::ERROR_NONE_MAPPED_:
+  case winapi::ERROR_SYMLINK_NOT_SUPPORTED_:
     Error = __WASI_ERRNO_INVAL;
     break;
-  case ERROR_BAD_PATHNAME:
-  case ERROR_FILE_NOT_FOUND:
-  case ERROR_PATH_NOT_FOUND:
-  case ERROR_SWAPERROR:
-  case ERROR_DIRECTORY:
-  case ERROR_INVALID_REPARSE_DATA:
-  case ERROR_MOD_NOT_FOUND:
+  case winapi::ERROR_BAD_PATHNAME_:
+  case winapi::ERROR_FILE_NOT_FOUND_:
+  case winapi::ERROR_PATH_NOT_FOUND_:
+  case winapi::ERROR_SWAPERROR_:
+  case winapi::ERROR_DIRECTORY_:
+  case winapi::ERROR_INVALID_REPARSE_DATA_:
+  case winapi::ERROR_MOD_NOT_FOUND_:
     Error = __WASI_ERRNO_NOENT;
     break;
-  case ERROR_BROKEN_PIPE:
-  case ERROR_BAD_PIPE:
-  case ERROR_MORE_DATA:
-  case ERROR_NO_DATA:
-  case ERROR_PIPE_CONNECTED:
-  case ERROR_PIPE_LISTENING:
-  case ERROR_PIPE_NOT_CONNECTED:
+  case winapi::ERROR_BROKEN_PIPE_:
+  case winapi::ERROR_BAD_PIPE_:
+  case winapi::ERROR_MORE_DATA_:
+  case winapi::ERROR_NO_DATA_:
+  case winapi::ERROR_PIPE_CONNECTED_:
+  case winapi::ERROR_PIPE_LISTENING_:
+  case winapi::ERROR_PIPE_NOT_CONNECTED:
     Error = __WASI_ERRNO_PIPE;
     break;
-  case ERROR_BUFFER_OVERFLOW:
-  case ERROR_FILENAME_EXCED_RANGE:
+  case winapi::ERROR_BUFFER_OVERFLOW_:
+  case winapi::ERROR_FILENAME_EXCED_RANGE_:
     Error = __WASI_ERRNO_NAMETOOLONG;
     break;
-  case ERROR_CALL_NOT_IMPLEMENTED:
-  case ERROR_INVALID_FUNCTION:
+  case winapi::ERROR_CALL_NOT_IMPLEMENTED_:
+  case winapi::ERROR_INVALID_FUNCTION_:
     Error = __WASI_ERRNO_NOSYS;
     break;
-  case ERROR_DIR_NOT_EMPTY:
+  case winapi::ERROR_DIR_NOT_EMPTY_:
     Error = __WASI_ERRNO_NOTEMPTY;
     break;
-  case ERROR_DISK_FULL:
-  case ERROR_HANDLE_DISK_FULL:
-  case ERROR_EA_TABLE_FULL:
-  case ERROR_END_OF_MEDIA:
+  case winapi::ERROR_DISK_FULL_:
+  case winapi::ERROR_HANDLE_DISK_FULL_:
+  case winapi::ERROR_EA_TABLE_FULL_:
+  case winapi::ERROR_END_OF_MEDIA_:
     Error = __WASI_ERRNO_NOSPC;
     break;
-  case ERROR_INSUFFICIENT_BUFFER:
-  case ERROR_NOT_ENOUGH_MEMORY:
-  case ERROR_OUTOFMEMORY:
-  case ERROR_STACK_OVERFLOW:
+  case winapi::ERROR_INSUFFICIENT_BUFFER_:
+  case winapi::ERROR_NOT_ENOUGH_MEMORY_:
+  case winapi::ERROR_OUTOFMEMORY_:
+  case winapi::ERROR_STACK_OVERFLOW_:
     Error = __WASI_ERRNO_NOMEM;
     break;
-  case ERROR_INVALID_ADDRESS:
-  case ERROR_INVALID_BLOCK:
+  case winapi::ERROR_INVALID_ADDRESS_:
+  case winapi::ERROR_INVALID_BLOCK_:
     Error = __WASI_ERRNO_FAULT;
     break;
-  case ERROR_NOT_READY:
-  case ERROR_NO_PROC_SLOTS:
-  case ERROR_ADDRESS_ALREADY_ASSOCIATED:
+  case winapi::ERROR_NOT_READY_:
+  case winapi::ERROR_NO_PROC_SLOTS_:
+  case winapi::ERROR_ADDRESS_ALREADY_ASSOCIATED_:
     Error = __WASI_ERRNO_ADDRINUSE;
     break;
-  case ERROR_INVALID_PASSWORD:
-  case ERROR_PRIVILEGE_NOT_HELD:
+  case winapi::ERROR_INVALID_PASSWORD_:
+  case winapi::ERROR_PRIVILEGE_NOT_HELD_:
     Error = __WASI_ERRNO_PERM;
     break;
-  case ERROR_IO_INCOMPLETE:
-  case ERROR_OPERATION_ABORTED:
+  case winapi::ERROR_IO_INCOMPLETE_:
+  case winapi::ERROR_OPERATION_ABORTED_:
     Error = __WASI_ERRNO_INTR;
     break;
-  case ERROR_META_EXPANSION_TOO_LONG:
+  case winapi::ERROR_META_EXPANSION_TOO_LONG_:
     Error = __WASI_ERRNO_2BIG;
     break;
-  case ERROR_NEGATIVE_SEEK:
-  case ERROR_SEEK_ON_DEVICE:
+  case winapi::ERROR_NEGATIVE_SEEK_:
+  case winapi::ERROR_SEEK_ON_DEVICE_:
     Error = __WASI_ERRNO_SPIPE;
     break;
-  case ERROR_NOT_SAME_DEVICE:
+  case winapi::ERROR_NOT_SAME_DEVICE_:
     Error = __WASI_ERRNO_XDEV;
     break;
-  case ERROR_SHARING_BUFFER_EXCEEDED:
+  case winapi::ERROR_SHARING_BUFFER_EXCEEDED_:
     Error = __WASI_ERRNO_NFILE;
     break;
-  case ERROR_TOO_MANY_MODULES:
-  case ERROR_TOO_MANY_OPEN_FILES:
+  case winapi::ERROR_TOO_MANY_MODULES_:
+  case winapi::ERROR_TOO_MANY_OPEN_FILES_:
     Error = __WASI_ERRNO_MFILE;
     break;
-  case ERROR_WAIT_NO_CHILDREN:
+  case winapi::ERROR_WAIT_NO_CHILDREN_:
     Error = __WASI_ERRNO_CHILD;
     break;
-  case ERROR_WRITE_PROTECT:
+  case winapi::ERROR_WRITE_PROTECT_:
     Error = __WASI_ERRNO_ROFS;
     break;
-  case ERROR_CANT_RESOLVE_FILENAME:
+  case winapi::ERROR_CANT_RESOLVE_FILENAME_:
     Error = __WASI_ERRNO_LOOP;
     break;
-  case ERROR_CONNECTION_ABORTED:
+  case winapi::ERROR_CONNECTION_ABORTED_:
     Error = __WASI_ERRNO_CONNABORTED;
     break;
-  case ERROR_CONNECTION_REFUSED:
+  case winapi::ERROR_CONNECTION_REFUSED_:
     Error = __WASI_ERRNO_CONNREFUSED;
     break;
-  case ERROR_HOST_UNREACHABLE:
+  case winapi::ERROR_HOST_UNREACHABLE_:
     Error = __WASI_ERRNO_HOSTUNREACH;
     break;
-  case ERROR_INVALID_HANDLE:
+  case winapi::ERROR_INVALID_HANDLE_:
     Error = __WASI_ERRNO_BADF;
     break;
-  case ERROR_NETNAME_DELETED:
+  case winapi::ERROR_NETNAME_DELETED_:
     Error = __WASI_ERRNO_CONNRESET;
     break;
-  case ERROR_NETWORK_UNREACHABLE:
+  case winapi::ERROR_NETWORK_UNREACHABLE_:
     Error = __WASI_ERRNO_NETUNREACH;
     break;
-  case ERROR_NOT_CONNECTED:
+  case winapi::ERROR_NOT_CONNECTED_:
     Error = __WASI_ERRNO_NOTCONN;
     break;
-  case ERROR_NOT_SUPPORTED:
+  case winapi::ERROR_NOT_SUPPORTED_:
     Error = __WASI_ERRNO_NOTSUP;
     break;
-  case ERROR_SEM_TIMEOUT:
+  case winapi::ERROR_SEM_TIMEOUT_:
     Error = __WASI_ERRNO_TIMEDOUT;
     break;
-  case ERROR_TOO_MANY_LINKS:
+  case winapi::ERROR_TOO_MANY_LINKS_:
     Error = __WASI_ERRNO_MLINK;
     break;
   default:
@@ -371,9 +370,9 @@ inline constexpr __wasi_errno_t fromWinError(DWORD Winerr) {
   return Error;
 }
 
-constexpr DWORD attributeFlags(__wasi_oflags_t OpenFlags,
-                               __wasi_fdflags_t FdFlags) noexcept {
-  DWORD Flags = FILE_ATTRIBUTE_NORMAL;
+constexpr winapi::DWORD_ attributeFlags(__wasi_oflags_t OpenFlags,
+                                        __wasi_fdflags_t FdFlags) noexcept {
+  winapi::DWORD_ Flags = winapi::FILE_ATTRIBUTE_NORMAL_;
   if ((FdFlags & __WASI_FDFLAGS_NONBLOCK) != 0) {
     Flags |= FILE_FLAG_OVERLAPPED;
   }
@@ -381,27 +380,27 @@ constexpr DWORD attributeFlags(__wasi_oflags_t OpenFlags,
   // Source: https://devblogs.microsoft.com/oldnewthing/20210729-00/?p=105494
   if ((FdFlags & __WASI_FDFLAGS_SYNC) || (FdFlags & __WASI_FDFLAGS_RSYNC)) {
     // Linux does not implement O_RSYNC and glibc defines O_RSYNC as O_SYNC
-    Flags |= FILE_FLAG_WRITE_THROUGH | FILE_FLAG_NO_BUFFERING;
+    Flags |= winapi::FILE_FLAG_WRITE_THROUGH_ | winapi::FILE_FLAG_NO_BUFFERING_;
   }
   if (FdFlags & __WASI_FDFLAGS_DSYNC) {
-    Flags |= FILE_FLAG_WRITE_THROUGH;
+    Flags |= winapi::FILE_FLAG_WRITE_THROUGH_;
   }
   if (OpenFlags & __WASI_OFLAGS_DIRECTORY) {
-    Flags |= FILE_ATTRIBUTE_DIRECTORY;
+    Flags |= winapi::FILE_ATTRIBUTE_DIRECTORY_;
   }
 
   return Flags;
 }
 
-constexpr DWORD accessFlags(__wasi_fdflags_t FdFlags,
-                            uint8_t VFSFlags) noexcept {
-  DWORD Flags = 0;
+constexpr winapi::DWORD_ accessFlags(__wasi_fdflags_t FdFlags,
+                                     uint8_t VFSFlags) noexcept {
+  winapi::DWORD_ Flags = 0;
 
   if (VFSFlags & VFS::Read) {
     if (VFSFlags & VFS::Write) {
-      Flags |= GENERIC_READ | GENERIC_WRITE;
+      Flags |= winapi::GENERIC_READ_ | GENERIC_WRITE;
     } else {
-      Flags |= GENERIC_READ;
+      Flags |= winapi::GENERIC_READ_;
     }
   } else if (VFSFlags & VFS::Write) {
     Flags |= GENERIC_WRITE;
@@ -414,8 +413,8 @@ constexpr DWORD accessFlags(__wasi_fdflags_t FdFlags,
   return Flags;
 }
 
-constexpr DWORD creationDisposition(__wasi_oflags_t OpenFlags) {
-  DWORD Flags = OPEN_EXISTING;
+constexpr winapi::DWORD_ creationDisposition(__wasi_oflags_t OpenFlags) {
+  winapi::DWORD_ Flags = winapi::OPEN_EXISTING_;
   if (OpenFlags & __WASI_OFLAGS_CREAT) {
     Flags = OPEN_ALWAYS;
   }
@@ -428,14 +427,14 @@ constexpr DWORD creationDisposition(__wasi_oflags_t OpenFlags) {
   return Flags;
 }
 
-inline constexpr __wasi_filetype_t fromFileType(DWORD Attribute,
-                                                DWORD FileType) noexcept {
+inline constexpr __wasi_filetype_t
+fromFileType(winapi::DWORD_ Attribute, winapi::DWORD_ FileType) noexcept {
   switch (Attribute) {
-  case FILE_ATTRIBUTE_DIRECTORY:
+  case winapi::FILE_ATTRIBUTE_DIRECTORY_:
     return __WASI_FILETYPE_DIRECTORY;
-  case FILE_ATTRIBUTE_NORMAL:
+  case winapi::FILE_ATTRIBUTE_NORMAL_:
     return __WASI_FILETYPE_REGULAR_FILE;
-  case FILE_ATTRIBUTE_REPARSE_POINT:
+  case winapi::FILE_ATTRIBUTE_REPARSE_POINT_:
     return __WASI_FILETYPE_SYMBOLIC_LINK;
   }
   switch (FileType) {
@@ -445,7 +444,7 @@ inline constexpr __wasi_filetype_t fromFileType(DWORD Attribute,
   return __WASI_FILETYPE_UNKNOWN;
 }
 
-constexpr inline DWORD fromWhence(__wasi_whence_t Whence) {
+constexpr inline winapi::DWORD_ fromWhence(__wasi_whence_t Whence) {
   switch (Whence) {
   case __WASI_WHENCE_SET:
     return FILE_BEGIN;
@@ -463,7 +462,7 @@ void HandleHolder::reset() noexcept {
     if (likely(!isSocket(&Handle))) {
       winapi::CloseHandle(Handle);
     } else {
-      ::closesocket(reinterpret_cast<SOCKET>(Handle));
+      ::closesocket(reinterpret_cast<winapi::SOCKET_>(Handle));
     }
     Handle = nullptr;
   }
@@ -485,17 +484,17 @@ WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,
                               uint8_t VFSFlags) noexcept {
 
-  DWORD AttributeFlags = attributeFlags(OpenFlags, FdFlags);
-  DWORD AccessFlags = accessFlags(FdFlags, VFSFlags);
-  DWORD CreationDisposition = creationDisposition(OpenFlags);
+  winapi::DWORD_ AttributeFlags = attributeFlags(OpenFlags, FdFlags);
+  winapi::DWORD_ AccessFlags = accessFlags(FdFlags, VFSFlags);
+  winapi::DWORD_ CreationDisposition = creationDisposition(OpenFlags);
 
-  HANDLE FileHandle =
-      CreateFileA(Path.c_str(), AccessFlags,
-                  FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                  nullptr, CreationDisposition, AttributeFlags, nullptr);
+  winapi::HANDLE_ FileHandle = CreateFileA(
+      Path.c_str(), AccessFlags,
+      FILE_SHARE_DELETE | winapi::FILE_SHARE_READ_ | winapi::FILE_SHARE_WRITE_,
+      nullptr, CreationDisposition, AttributeFlags, nullptr);
 
-  if (unlikely(FileHandle == INVALID_HANDLE_VALUE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(FileHandle == winapi::INVALID_HANDLE_VALUE_)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   } else {
     INode New(FileHandle);
     return New;
@@ -511,9 +510,9 @@ WasiExpect<void> INode::fdAdvise(__wasi_filesize_t, __wasi_filesize_t,
 WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
 
-  LARGE_INTEGER FileSize;
-  if (unlikely(GetFileSizeEx(Handle, &FileSize) == FALSE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  winapi::LARGE_INTEGER_ FileSize;
+  if (unlikely(GetFileSizeEx(Handle, &FileSize) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   // We need to check if the request size (Offset + Len) is lesser than the
@@ -527,8 +526,8 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
 
     if (unlikely(GetFileInformationByHandleEx(Handle, FileStandardInfo,
                                               &StandardInfo,
-                                              sizeof(StandardInfo))) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+                                              sizeof(StandardInfo))) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
     // TODO: Since the unsigned integer is cast into a signed integer the range
@@ -539,16 +538,16 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
         static_cast<int64_t>((Offset + Len) & 0x7FFFFFFFFFFFFFFF);
 
     if (SetFileInformationByHandle(Handle, FileAllocationInfo, &AllocationInfo,
-                                   sizeof(AllocationInfo)) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+                                   sizeof(AllocationInfo)) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
   }
   return {};
 }
 
 WasiExpect<void> INode::fdDatasync() const noexcept {
-  if (unlikely(FlushFileBuffers(Handle) == FALSE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(FlushFileBuffers(Handle) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
   return {};
 }
@@ -561,8 +560,8 @@ WasiExpect<void> INode::fdFdstatGet(__wasi_fdstat_t &FdStat) const noexcept {
 
   // Update the file information
   FileInfo.emplace();
-  if (unlikely(GetFileInformationByHandle(Handle, &(*FileInfo)) == FALSE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(GetFileInformationByHandle(Handle, &(*FileInfo)) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   FdStat.fs_filetype =
@@ -582,33 +581,34 @@ INode::fdFdstatSetFlags(__wasi_fdflags_t FdFlags) const noexcept {
   // The __WASI_FDFLAGS_APPEND flag is ignored as it cannot be changed for an
   // open file
 
-  DWORD Attributes = FILE_ATTRIBUTE_NORMAL;
+  winapi::DWORD_ Attributes = winapi::FILE_ATTRIBUTE_NORMAL_;
 
-  FILE_BASIC_INFO BasicInfo;
+  winapi::FILE_BASIC_INFO_ BasicInfo;
 
   // Source: https://devblogs.microsoft.com/oldnewthing/20210729-00/?p=105494
   if ((FdFlags & __WASI_FDFLAGS_SYNC) || (FdFlags & __WASI_FDFLAGS_RSYNC)) {
     // Linux does not implement RSYNC and glibc defines O_RSYNC as O_SYNC
-    Attributes |= FILE_FLAG_WRITE_THROUGH | FILE_FLAG_NO_BUFFERING;
+    Attributes |=
+        winapi::FILE_FLAG_WRITE_THROUGH_ | winapi::FILE_FLAG_NO_BUFFERING_;
   }
   if (FdFlags & __WASI_FDFLAGS_DSYNC) {
-    Attributes |= FILE_FLAG_NO_BUFFERING;
+    Attributes |= winapi::FILE_FLAG_NO_BUFFERING_;
   }
   if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
     Attributes |= FILE_FLAG_OVERLAPPED;
   }
 
   if (unlikely(GetFileInformationByHandleEx(Handle, FileBasicInfo, &BasicInfo,
-                                            sizeof(BasicInfo))) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+                                            sizeof(BasicInfo))) == 0) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   // Update the attributes
   BasicInfo.FileAttributes = Attributes;
 
   if (unlikely(SetFileInformationByHandle(Handle, FileBasicInfo, &BasicInfo,
-                                          sizeof(BasicInfo))) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+                                          sizeof(BasicInfo))) == 0) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   return {};
@@ -621,8 +621,8 @@ INode::fdFilestatGet(__wasi_filestat_t &FileStat) const noexcept {
 
   // Update the File information
   FileInfo.emplace();
-  if (unlikely(GetFileInformationByHandle(Handle, &*FileInfo) == FALSE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(GetFileInformationByHandle(Handle, &*FileInfo) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   FileStat.filetype =
@@ -668,8 +668,8 @@ INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
 
   if (unlikely(GetFileInformationByHandleEx(Handle, FileStandardInfo,
                                             &StandardInfo,
-                                            sizeof(StandardInfo))) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+                                            sizeof(StandardInfo))) == 0) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   uint64_t PreviousSize =
@@ -680,42 +680,42 @@ INode::fdFilestatSetSize(__wasi_filesize_t Size) const noexcept {
   AllocationInfo.AllocationSize = toLargeIntegerFromUnsigned(Size);
 
   if (SetFileInformationByHandle(Handle, FileAllocationInfo, &AllocationInfo,
-                                 sizeof(AllocationInfo)) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+                                 sizeof(AllocationInfo)) == 0) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   if (Size > PreviousSize) {
     OVERLAPPED FileOffsetProvider;
     FileOffsetProvider.Offset =
-        static_cast<DWORD>(StandardInfo.AllocationSize.LowPart);
+        static_cast<winapi::DWORD_>(StandardInfo.AllocationSize.LowPart);
     FileOffsetProvider.OffsetHigh =
-        static_cast<DWORD>(StandardInfo.AllocationSize.HighPart);
+        static_cast<winapi::DWORD_>(StandardInfo.AllocationSize.HighPart);
 
     // Write null byte by byte
     uint64_t Count = static_cast<uint64_t>(Size - PreviousSize);
     while (Count > 0) {
-      DWORD BytesWritten;
-      BOOL WriteResult =
+      winapi::DWORD_ BytesWritten;
+      winapi::BOOL_ WriteResult =
           WriteFile(Handle, "\0", 1, nullptr, &FileOffsetProvider);
 
-      if (GetLastError() == ERROR_IO_PENDING) {
+      if (winapi::GetLastError() == ERROR_IO_PENDING) {
         // Wait for the Write to complete
         if (unlikely(GetOverlappedResult(Handle, &FileOffsetProvider,
-                                         &BytesWritten, TRUE)) == FALSE) {
-          return WasiUnexpect(fromWinError(GetLastError()));
+                                         &BytesWritten, TRUE)) == 0) {
+          return WasiUnexpect(fromWinError(winapi::GetLastError()));
         }
-      } else if (unlikely(WriteResult == FALSE)) {
-        return WasiUnexpect(fromWinError(GetLastError()));
+      } else if (unlikely(WriteResult == 0)) {
+        return WasiUnexpect(fromWinError(winapi::GetLastError()));
       }
       Count++;
     }
 
     // Restore pointer
-    LARGE_INTEGER FileOffset;
+    winapi::LARGE_INTEGER_ FileOffset;
     FileOffset.QuadPart = static_cast<int64_t>(PreviousSize - Size);
     if (unlikely(SetFilePointerEx(Handle, FileOffset, nullptr, FILE_CURRENT) ==
-                 FALSE)) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+                 0)) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
   }
 
@@ -733,9 +733,9 @@ INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
   // For setting access time
   if (FstFlags & __WASI_FSTFLAGS_ATIM) {
     uint64_t Aticks = ATim / NANOSECONDS_PER_TICK + TICKS_TO_UNIX_EPOCH;
-    AFileTime.dwLowDateTime = static_cast<DWORD>(Aticks & 0xFFFFFFFF);
+    AFileTime.dwLowDateTime = static_cast<winapi::DWORD_>(Aticks & 0xFFFFFFFF);
     AFileTime.dwHighDateTime =
-        static_cast<DWORD>((Aticks & 0xFFFFFFFF00000000) >> 32);
+        static_cast<winapi::DWORD_>((Aticks & 0xFFFFFFFF00000000) >> 32);
   } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
     GetSystemTimeAsFileTime(&AFileTime);
   }
@@ -743,15 +743,15 @@ INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
   // For setting modification time
   if (FstFlags & __WASI_FSTFLAGS_MTIM) {
     uint64_t Mticks = MTim / NANOSECONDS_PER_TICK + TICKS_TO_UNIX_EPOCH;
-    MFileTime.dwLowDateTime = static_cast<DWORD>(Mticks & 0xFFFFFFFF);
+    MFileTime.dwLowDateTime = static_cast<winapi::DWORD_>(Mticks & 0xFFFFFFFF);
     MFileTime.dwHighDateTime =
-        static_cast<DWORD>((Mticks & 0xFFFFFFFF00000000) >> 32);
+        static_cast<winapi::DWORD_>((Mticks & 0xFFFFFFFF00000000) >> 32);
   } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
     GetSystemTimeAsFileTime(&MFileTime);
   }
 
-  if (unlikely(SetFileTime(Handle, nullptr, &AFileTime, &MFileTime)) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(SetFileTime(Handle, nullptr, &AFileTime, &MFileTime)) == 0) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   return {};
@@ -764,7 +764,7 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
   uint64_t LocalOffset = Offset;
 
   for (auto IOV : IOVs) {
-    DWORD NumberOfBytesRead = 0;
+    winapi::DWORD_ NumberOfBytesRead = 0;
     OVERLAPPED Result;
 
     Result.Offset = static_cast<uint32_t>(LocalOffset);
@@ -772,17 +772,17 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
 
     // Casting the 64 bit `IOV.size()` integer may overflow the range
     // of the 32 bit integer it is cast into
-    BOOL ReadResult =
+    winapi::BOOL_ ReadResult =
         ReadFile(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
                  &NumberOfBytesRead, &Result);
-    if (GetLastError() == ERROR_IO_PENDING) {
+    if (winapi::GetLastError() == ERROR_IO_PENDING) {
       // Wait for the Write to complete
       if (unlikely(GetOverlappedResult(Handle, &Result, &NumberOfBytesRead,
-                                       TRUE)) == FALSE) {
-        return WasiUnexpect(fromWinError(GetLastError()));
+                                       TRUE)) == 0) {
+        return WasiUnexpect(fromWinError(winapi::GetLastError()));
       }
-    } else if (unlikely(ReadResult == FALSE)) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    } else if (unlikely(ReadResult == 0)) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
     LocalOffset += NumberOfBytesRead;
     NRead += NumberOfBytesRead;
@@ -798,25 +798,25 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
   uint64_t LocalOffset = Offset;
 
   for (auto IOV : IOVs) {
-    DWORD NumberOfBytesWritten = 0;
+    winapi::DWORD_ NumberOfBytesWritten = 0;
     OVERLAPPED Result;
 
     Result.Offset = static_cast<uint32_t>(LocalOffset);
     Result.OffsetHigh = static_cast<uint32_t>(LocalOffset >> 32);
 
     // There maybe issues due to casting IOV.size() to unit32_t
-    BOOL WriteResult = WriteFile(
+    winapi::BOOL_ WriteResult = WriteFile(
         Handle, static_cast<const uint8_t *>(IOV.data()),
         static_cast<uint32_t>(IOV.size()), &NumberOfBytesWritten, &Result);
 
-    if (GetLastError() == ERROR_IO_PENDING) {
+    if (winapi::GetLastError() == ERROR_IO_PENDING) {
       // Wait for the Write to complete
       if (unlikely(GetOverlappedResult(Handle, &Result, &NumberOfBytesWritten,
-                                       TRUE)) == FALSE) {
-        return WasiUnexpect(fromWinError(GetLastError()));
+                                       TRUE)) == 0) {
+        return WasiUnexpect(fromWinError(winapi::GetLastError()));
       }
-    } else if (unlikely(WriteResult == FALSE)) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    } else if (unlikely(WriteResult == 0)) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
     LocalOffset += NumberOfBytesWritten;
@@ -854,13 +854,14 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
       LocalBuffer;
 
   // First get the path of the handle
-  if (unlikely(GetFinalPathNameByHandleW(Handle, HandleFullPathW, MAX_PATH,
-                                         FILE_NAME_NORMALIZED)) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(winapi::GetFinalPathNameByHandleW(
+          Handle, HandleFullPathW, MAX_PATH, winapi::FILE_NAME_NORMALIZED_)) ==
+      0) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   // Check if the path is a directory or not
-  if (!PathIsDirectoryW(HandleFullPathW)) {
+  if (!winapi::PathIsDirectoryW(HandleFullPathW)) {
     return WasiUnexpect(__WASI_ERRNO_NOTDIR);
   }
 
@@ -881,21 +882,21 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
   }
 
   // Begin the search for files
-  HANDLE LocalFindHandle = FindFirstFileW(FullPathW, &FindData);
-  if (unlikely(LocalFindHandle == INVALID_HANDLE_VALUE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  winapi::HANDLE_ LocalFindHandle = FindFirstFileW(FullPathW, &FindData);
+  if (unlikely(LocalFindHandle == winapi::INVALID_HANDLE_VALUE_)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   // seekdir() emulation - go to the Cookie'th file/directory
   while (Seek < Cookie) {
-    if (unlikely(FindNextFileW(LocalFindHandle, &FindData) == FALSE)) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(FindNextFileW(LocalFindHandle, &FindData) == 0)) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
     Seek++;
   }
 
   uint32_t NumberOfBytesRead = 0;
-  BOOL FindNextResult = FALSE;
+  winapi::BOOL_ FindNextResult = 0;
 
   do {
     if (!LocalBuffer.empty()) {
@@ -929,7 +930,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
     // The opening and closing of the handles may have a negative
     // impact on the performance
 
-    HANDLE LocalFileHandle;
+    winapi::HANDLE_ LocalFileHandle;
 
     CombineResult = PathCchCombine(FullPathW, MAX_PATH, HandleFullPathW,
                                    FindData.cFileName);
@@ -945,17 +946,18 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
       return WasiUnexpect(__WASI_ERRNO_NAMETOOLONG);
     }
 
-    LocalFileHandle = CreateFileW(FullPathW, GENERIC_READ, FILE_SHARE_READ,
-                                  nullptr, OPEN_EXISTING, 0, nullptr);
+    LocalFileHandle =
+        CreateFileW(FullPathW, winapi::GENERIC_READ_, winapi::FILE_SHARE_READ_,
+                    nullptr, winapi::OPEN_EXISTING_, 0, nullptr);
 
-    if (LocalFileHandle == INVALID_HANDLE_VALUE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (LocalFileHandle == winapi::INVALID_HANDLE_VALUE_) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
-    DWORD FileType = GetFileType(LocalFileHandle);
+    winapi::DWORD_ FileType = GetFileType(LocalFileHandle);
 
-    if (GetLastError() != NO_ERROR) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (winapi::GetLastError() != NO_ERROR) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
     CloseHandle(LocalFileHandle);
@@ -982,13 +984,13 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
               LocalBuffer.begin() + sizeof(__wasi_dirent_t));
     // Check if there no more files left or if an error has been encountered
     FindNextResult = FindNextFileW(LocalFindHandle, &FindData);
-  } while (FindNextResult != ERROR_NO_MORE_FILES || FindNextResult != FALSE);
+  } while (FindNextResult != ERROR_NO_MORE_FILES || FindNextResult != 0);
 
   FindClose(LocalFindHandle);
 
-  if (GetLastError() != ERROR_NO_MORE_FILES) {
+  if (winapi::GetLastError() != ERROR_NO_MORE_FILES) {
     // The FindNextFileW() function has failed
-    return WasiUnexpect(fromWinError(GetLastError()));
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   Size = NumberOfBytesRead;
@@ -1000,12 +1002,12 @@ WasiExpect<void> INode::fdSeek(__wasi_filedelta_t Offset,
                                __wasi_whence_t Whence,
                                __wasi_filesize_t &Size) const noexcept {
 
-  DWORD MoveMethod = fromWhence(Whence);
-  LARGE_INTEGER DistanceToMove = toLargeIntegerFromSigned(Offset);
-  LARGE_INTEGER Pointer;
+  winapi::DWORD_ MoveMethod = fromWhence(Whence);
+  winapi::LARGE_INTEGER_ DistanceToMove = toLargeIntegerFromSigned(Offset);
+  winapi::LARGE_INTEGER_ Pointer;
   if (unlikely(SetFilePointerEx(Handle, DistanceToMove, &Pointer,
-                                MoveMethod)) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+                                MoveMethod)) == 0) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   } else {
     Size = static_cast<uint64_t>(Pointer.QuadPart);
   }
@@ -1013,18 +1015,18 @@ WasiExpect<void> INode::fdSeek(__wasi_filedelta_t Offset,
 }
 
 WasiExpect<void> INode::fdSync() const noexcept {
-  if (unlikely(FlushFileBuffers(Handle)) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(FlushFileBuffers(Handle) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
   return {};
 }
 
 WasiExpect<void> INode::fdTell(__wasi_filesize_t &Size) const noexcept {
-  LARGE_INTEGER Pointer;
+  winapi::LARGE_INTEGER_ Pointer;
 
-  if (unlikely(SetFilePointerEx(Handle, ZERO_OFFSET, &Pointer, FILE_CURRENT)) ==
-      FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(SetFilePointerEx(Handle, ZERO_OFFSET, &Pointer, FILE_CURRENT) ==
+               0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   } else {
     Size = static_cast<uint64_t>(Pointer.QuadPart);
   }
@@ -1053,16 +1055,17 @@ WasiExpect<uint64_t> INode::getNativeHandler() const noexcept {
 WasiExpect<void> INode::pathCreateDirectory(std::string Path) const noexcept {
   wchar_t FullPathW[MAX_PATH];
 
-  if (PathIsRelativeA(Path.c_str())) {
+  if (winapi::PathIsRelativeA(Path.c_str())) {
     wchar_t HandleFullPathW[MAX_PATH];
 
     // First get the paths of the handles
-    if (unlikely(GetFinalPathNameByHandleW(Handle, HandleFullPathW, MAX_PATH,
-                                           FILE_NAME_NORMALIZED)) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            Handle, HandleFullPathW, MAX_PATH,
+            winapi::FILE_NAME_NORMALIZED_)) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
-    if (!PathIsDirectoryW(HandleFullPathW)) {
+    if (!winapi::PathIsDirectoryW(HandleFullPathW)) {
       return WasiUnexpect(__WASI_ERRNO_NOTDIR);
     }
 
@@ -1091,8 +1094,8 @@ WasiExpect<void> INode::pathCreateDirectory(std::string Path) const noexcept {
     mbstowcs(FullPathW, Path.c_str(), MAX_PATH);
   }
 
-  if (unlikely(CreateDirectoryW(FullPathW, nullptr) == FALSE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(CreateDirectoryW(FullPathW, nullptr) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
   return {};
 }
@@ -1107,13 +1110,14 @@ INode::pathFilestatGet(std::string Path,
   // Since the required function is similar to `stat` we assume Path is an
   // absolute path
 
-  HANDLE LocalFileHandle;
-  if (LocalFileHandle = CreateFileA(Path.c_str(), GENERIC_READ, FILE_SHARE_READ,
-                                    nullptr, OPEN_EXISTING, 0, nullptr);
-      likely(LocalFileHandle != INVALID_HANDLE_VALUE)) {
+  winapi::HANDLE_ LocalFileHandle;
+  if (LocalFileHandle = CreateFileA(Path.c_str(), winapi::GENERIC_READ_,
+                                    winapi::FILE_SHARE_READ_, nullptr,
+                                    winapi::OPEN_EXISTING_, 0, nullptr);
+      likely(LocalFileHandle != winapi::INVALID_HANDLE_VALUE_)) {
     BY_HANDLE_FILE_INFORMATION LocalFileInfo;
-    if (likely(GetFileInformationByHandle(LocalFileHandle, &LocalFileInfo) !=
-               FALSE)) {
+    if (likely(winapi::GetFileInformationByHandle(LocalFileHandle,
+                                                  &LocalFileInfo) != 0)) {
       FileStat.filetype = fromFileType(LocalFileInfo.dwFileAttributes,
                                        GetFileType(LocalFileHandle));
 
@@ -1156,7 +1160,7 @@ INode::pathFilestatGet(std::string Path,
     CloseHandle(LocalFileHandle);
   }
 
-  return WasiUnexpect(fromWinError(GetLastError()));
+  return WasiUnexpect(fromWinError(winapi::GetLastError()));
 }
 
 WasiExpect<void>
@@ -1166,16 +1170,17 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
 
   wchar_t FullPathW[MAX_PATH];
 
-  if (PathIsRelativeA(Path.c_str())) {
+  if (winapi::PathIsRelativeA(Path.c_str())) {
     wchar_t HandleFullPathW[MAX_PATH];
 
     // First get the path of the handle
-    if (unlikely(GetFinalPathNameByHandleW(Handle, HandleFullPathW, MAX_PATH,
-                                           FILE_NAME_NORMALIZED)) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            Handle, HandleFullPathW, MAX_PATH,
+            winapi::FILE_NAME_NORMALIZED_)) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
-    if (!PathIsDirectoryW(HandleFullPathW)) {
+    if (!winapi::PathIsDirectoryW(HandleFullPathW)) {
       return WasiUnexpect(__WASI_ERRNO_NOTDIR);
     }
 
@@ -1202,10 +1207,11 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     mbstowcs(FullPathW, Path.c_str(), MAX_PATH);
   }
 
-  HANDLE LocalFileHandle;
-  if (LocalFileHandle = CreateFileW(FullPathW, GENERIC_READ, FILE_SHARE_READ,
-                                    nullptr, OPEN_EXISTING, 0, nullptr);
-      likely(LocalFileHandle != INVALID_HANDLE_VALUE)) {
+  winapi::HANDLE_ LocalFileHandle;
+  if (LocalFileHandle = CreateFileW(FullPathW, winapi::GENERIC_READ_,
+                                    winapi::FILE_SHARE_READ_, nullptr,
+                                    winapi::OPEN_EXISTING_, 0, nullptr);
+      likely(LocalFileHandle != winapi::INVALID_HANDLE_VALUE_)) {
     // Let FileTime be initialized to zero if the times need not be changed
     FILETIME AFileTime = {0, 0};
     FILETIME MFileTime = {0, 0};
@@ -1213,8 +1219,10 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     // For setting access time
     if (FstFlags & __WASI_FSTFLAGS_ATIM) {
       uint64_t Aticks = ATim / NANOSECONDS_PER_TICK + TICKS_TO_UNIX_EPOCH;
-      AFileTime.dwLowDateTime = static_cast<DWORD>(Aticks % 0x100000000ULL);
-      AFileTime.dwHighDateTime = static_cast<DWORD>(Aticks / 0x100000000ULL);
+      AFileTime.dwLowDateTime =
+          static_cast<winapi::DWORD_>(Aticks % 0x100000000ULL);
+      AFileTime.dwHighDateTime =
+          static_cast<winapi::DWORD_>(Aticks / 0x100000000ULL);
     } else if (FstFlags & __WASI_FSTFLAGS_ATIM_NOW) {
       GetSystemTimeAsFileTime(&AFileTime);
     }
@@ -1222,21 +1230,23 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     // For setting modification time
     if (FstFlags & __WASI_FSTFLAGS_MTIM) {
       uint64_t Mticks = MTim / NANOSECONDS_PER_TICK + TICKS_TO_UNIX_EPOCH;
-      MFileTime.dwLowDateTime = static_cast<DWORD>(Mticks % 0x100000000ULL);
-      MFileTime.dwHighDateTime = static_cast<DWORD>(Mticks / 0x100000000ULL);
+      MFileTime.dwLowDateTime =
+          static_cast<winapi::DWORD_>(Mticks % 0x100000000ULL);
+      MFileTime.dwHighDateTime =
+          static_cast<winapi::DWORD_>(Mticks / 0x100000000ULL);
     } else if (FstFlags & __WASI_FSTFLAGS_MTIM_NOW) {
       GetSystemTimeAsFileTime(&MFileTime);
     }
 
     if (unlikely(SetFileTime(LocalFileHandle, nullptr, &AFileTime,
-                             &MFileTime)) == FALSE) {
+                             &MFileTime) == 0)) {
       CloseHandle(LocalFileHandle);
-      return WasiUnexpect(fromWinError(GetLastError()));
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
     CloseHandle(LocalFileHandle);
     return {};
   }
-  return WasiUnexpect(fromWinError(GetLastError()));
+  return WasiUnexpect(fromWinError(winapi::GetLastError()));
 }
 
 WasiExpect<void> INode::pathLink(const INode &Old, std::string OldPath,
@@ -1246,17 +1256,17 @@ WasiExpect<void> INode::pathLink(const INode &Old, std::string OldPath,
   wchar_t OldFullPathW[MAX_PATH];
   wchar_t NewFullPathW[MAX_PATH];
 
-  if (PathIsRelativeA(OldPath.c_str())) {
+  if (winapi::PathIsRelativeA(OldPath.c_str())) {
     wchar_t HandleFullPathW[MAX_PATH];
 
     // First get the paths of the handle
-    if (unlikely(GetFinalPathNameByHandleW(Old.Handle, HandleFullPathW,
-                                           MAX_PATH, FILE_NAME_NORMALIZED)) ==
-        FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            Old.Handle, HandleFullPathW, MAX_PATH,
+            winapi::FILE_NAME_NORMALIZED)) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
-    if (!PathIsDirectoryW(HandleFullPathW)) {
+    if (!winapi::PathIsDirectoryW(HandleFullPathW)) {
       return WasiUnexpect(__WASI_ERRNO_NOTDIR);
     }
 
@@ -1284,17 +1294,17 @@ WasiExpect<void> INode::pathLink(const INode &Old, std::string OldPath,
     mbstowcs(OldFullPathW, OldPath.c_str(), MAX_PATH);
   }
 
-  if (PathIsRelativeA(NewPath.c_str())) {
+  if (winapi::PathIsRelativeA(NewPath.c_str())) {
     wchar_t HandleFullPathW[MAX_PATH];
 
     // First get the paths of the handle
-    if (unlikely(GetFinalPathNameByHandleW(New.Handle, HandleFullPathW,
-                                           MAX_PATH, FILE_NAME_NORMALIZED)) ==
-        FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            New.Handle, HandleFullPathW, MAX_PATH,
+            winapi::FILE_NAME_NORMALIZED)) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
-    if (!PathIsDirectoryW(HandleFullPathW)) {
+    if (!winapi::PathIsDirectoryW(HandleFullPathW)) {
       return WasiUnexpect(__WASI_ERRNO_NOTDIR);
     }
 
@@ -1322,8 +1332,8 @@ WasiExpect<void> INode::pathLink(const INode &Old, std::string OldPath,
   }
 
   // Create the hard link from the paths
-  if (unlikely(CreateHardLinkW(NewFullPathW, OldFullPathW, nullptr)) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(CreateHardLinkW(NewFullPathW, OldFullPathW, nullptr) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   return {};
@@ -1334,16 +1344,17 @@ WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
                                   uint8_t VFSFlags) const noexcept {
   wchar_t FullPathW[MAX_PATH];
 
-  if (PathIsRelativeA(Path.c_str())) {
+  if (winapi::PathIsRelativeA(Path.c_str())) {
     wchar_t HandleFullPathW[MAX_PATH];
 
     // First get the paths of the handles
-    if (unlikely(GetFinalPathNameByHandleW(Handle, HandleFullPathW, MAX_PATH,
-                                           FILE_NAME_NORMALIZED)) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            Handle, HandleFullPathW, MAX_PATH,
+            winapi::FILE_NAME_NORMALIZED_)) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
-    if (!PathIsDirectoryW(HandleFullPathW)) {
+    if (!winapi::PathIsDirectoryW(HandleFullPathW)) {
       return WasiUnexpect(__WASI_ERRNO_NOTDIR);
     }
 
@@ -1371,16 +1382,16 @@ WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
     mbstowcs(FullPathW, Path.c_str(), MAX_PATH);
   }
 
-  DWORD AttributeFlags = attributeFlags(OpenFlags, FdFlags);
-  DWORD AccessFlags = accessFlags(FdFlags, VFSFlags);
-  DWORD CreationDisposition = creationDisposition(OpenFlags);
+  winapi::DWORD_ AttributeFlags = attributeFlags(OpenFlags, FdFlags);
+  winapi::DWORD_ AccessFlags = accessFlags(FdFlags, VFSFlags);
+  winapi::DWORD_ CreationDisposition = creationDisposition(OpenFlags);
 
-  HANDLE FileHandle =
-      CreateFileW(FullPathW, AccessFlags,
-                  FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-                  nullptr, CreationDisposition, AttributeFlags, nullptr);
-  if (unlikely(FileHandle == INVALID_HANDLE_VALUE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  winapi::HANDLE_ FileHandle = CreateFileW(
+      FullPathW, AccessFlags,
+      FILE_SHARE_DELETE | winapi::FILE_SHARE_READ_ | winapi::FILE_SHARE_WRITE_,
+      nullptr, CreationDisposition, AttributeFlags, nullptr);
+  if (unlikely(FileHandle == winapi::INVALID_HANDLE_VALUE_)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   } else {
     INode New(FileHandle);
     return New;
@@ -1395,9 +1406,10 @@ WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
   if (PathIsRelativeA(Path.c_str())) {
     wchar_t HandleFullPathW[MAX_PATH];
     // First get the paths of the handles
-    if (unlikely(GetFinalPathNameByHandleW(Handle, HandleFullPathW, MAX_PATH,
-                                           FILE_NAME_NORMALIZED)) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            Handle, HandleFullPathW, MAX_PATH,
+            winapi::FILE_NAME_NORMALIZED_)) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
     if (!PathIsDirectoryW(HandleFullPathW)) {
@@ -1428,28 +1440,29 @@ WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
   }
 
   // Fill the Buffer with the contents of the link
-  HANDLE LocalFileHandle;
+  winapi::HANDLE_ LocalFileHandle;
 
-  LocalFileHandle = CreateFileW(FullPathW, GENERIC_READ, FILE_SHARE_READ,
-                                nullptr, OPEN_EXISTING, 0, nullptr);
+  LocalFileHandle =
+      CreateFileW(FullPathW, winapi::GENERIC_READ_, winapi::FILE_SHARE_READ_,
+                  nullptr, winapi::OPEN_EXISTING_, 0, nullptr);
 
-  if (likely(LocalFileHandle != INVALID_HANDLE_VALUE)) {
+  if (likely(LocalFileHandle != winapi::INVALID_HANDLE_VALUE_)) {
     if (unlikely(GetFinalPathNameByHandleA(LocalFileHandle, Buffer.data(),
                                            static_cast<uint32_t>(Buffer.size()),
-                                           FILE_NAME_NORMALIZED)) != FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+                                           FILE_NAME_NORMALIZED) != 0)) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
     NRead = static_cast<uint32_t>(Buffer.size());
     CloseHandle(LocalFileHandle);
     return {};
   }
 
-  return WasiUnexpect(fromWinError(GetLastError()));
+  return WasiUnexpect(fromWinError(winapi::GetLastError()));
 }
 
 WasiExpect<void> INode::pathRemoveDirectory(std::string Path) const noexcept {
-  if (RemoveDirectoryA(Path.c_str()) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (RemoveDirectoryA(Path.c_str()) == 0) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
   return {};
 }
@@ -1465,9 +1478,10 @@ WasiExpect<void> INode::pathRename(const INode &Old, std::string OldPath,
     wchar_t HandleFullPath[MAX_PATH];
 
     // First get the paths of the handles
-    if (unlikely(GetFinalPathNameByHandleW(Old.Handle, HandleFullPath, MAX_PATH,
-                                           FILE_NAME_NORMALIZED)) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            Old.Handle, HandleFullPath, MAX_PATH,
+            winapi::FILE_NAME_NORMALIZED)) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
     if (!PathIsDirectoryW(HandleFullPath) && !OldPath.empty()) {
@@ -1502,10 +1516,10 @@ WasiExpect<void> INode::pathRename(const INode &Old, std::string OldPath,
     wchar_t HandleFullPathW[MAX_PATH];
 
     // First get the paths of the handles
-    if (unlikely(GetFinalPathNameByHandleW(New.Handle, HandleFullPathW,
-                                           MAX_PATH, FILE_NAME_NORMALIZED)) ==
-        FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            New.Handle, HandleFullPathW, MAX_PATH,
+            winapi::FILE_NAME_NORMALIZED_)) == 0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
 
     if (!PathIsDirectoryW(HandleFullPathW) && !NewPath.empty()) {
@@ -1537,8 +1551,8 @@ WasiExpect<void> INode::pathRename(const INode &Old, std::string OldPath,
   }
 
   // Rename the file from the paths
-  if (unlikely(MoveFileW(OldFullPathW, NewFullPathW)) == FALSE) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(MoveFileW(OldFullPathW, NewFullPathW) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   return {};
@@ -1558,9 +1572,10 @@ WasiExpect<void> INode::pathSymlink(std::string OldPath,
     mbstowcs(OldPathW, OldPath.c_str(), MAX_PATH);
 
     // First get the paths of the handle
-    if (unlikely(GetFinalPathNameByHandleW(Handle, HandleFullPath, MAX_PATH,
-                                           FILE_NAME_NORMALIZED)) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            Handle, HandleFullPath, MAX_PATH, winapi::FILE_NAME_NORMALIZED_)) ==
+        0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
     // If check it is a directory or not
     if (!PathIsDirectoryW(HandleFullPath) && !OldPath.empty()) {
@@ -1588,9 +1603,10 @@ WasiExpect<void> INode::pathSymlink(std::string OldPath,
     mbstowcs(NewPathW, NewPath.c_str(), MAX_PATH);
 
     // First get the path of the handle
-    if (unlikely(GetFinalPathNameByHandleW(Handle, HandleFullPath, MAX_PATH,
-                                           FILE_NAME_NORMALIZED)) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            Handle, HandleFullPath, MAX_PATH, winapi::FILE_NAME_NORMALIZED_)) ==
+        0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
     __wasi_fdstat_t HandleStat;
     fdFdstatGet(HandleStat);
@@ -1612,13 +1628,13 @@ WasiExpect<void> INode::pathSymlink(std::string OldPath,
       return WasiUnexpect(__WASI_ERRNO_NAMETOOLONG);
     }
   }
-  DWORD TargetType = 0;
+  winapi::DWORD_ TargetType = 0;
   if (PathIsDirectoryW(OldFullPathW)) {
     TargetType = SYMBOLIC_LINK_FLAG_DIRECTORY;
   }
 
   if (unlikely(CreateSymbolicLinkW(NewFullPathW, OldFullPathW, TargetType))) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   return {};
@@ -1636,12 +1652,13 @@ WasiExpect<void> INode::pathUnlinkFile(std::string Path) const noexcept {
     mbstowcs(PathW, Path.c_str(), MAX_PATH);
 
     // First get the paths of the handle
-    if (unlikely(GetFinalPathNameByHandleW(Handle, HandleFullPath, MAX_PATH,
-                                           FILE_NAME_NORMALIZED)) == FALSE) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(winapi::GetFinalPathNameByHandleW(
+            Handle, HandleFullPath, MAX_PATH, winapi::FILE_NAME_NORMALIZED_)) ==
+        0) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
     if (!PathIsDirectoryW(HandleFullPath)) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
     HRESULT CombineResult =
         PathCchCombine(PathFullW, MAX_PATH, HandleFullPath, PathW);
@@ -1659,14 +1676,14 @@ WasiExpect<void> INode::pathUnlinkFile(std::string Path) const noexcept {
   }
 
   if (PathIsDirectoryW(PathFullW)) {
-    if (unlikely(RemoveDirectoryW(PathFullW) == FALSE)) {
-      return WasiUnexpect(fromWinError(GetLastError()));
+    if (unlikely(RemoveDirectoryW(PathFullW) == 0)) {
+      return WasiUnexpect(fromWinError(winapi::GetLastError()));
     }
     return {};
   }
 
-  if (unlikely(DeleteFileW(PathFullW) == FALSE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(DeleteFileW(PathFullW) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
 
   return {};
@@ -1813,7 +1830,7 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
       unlikely(NewSock == INVALID_SOCKET)) {
     return WasiUnexpect(fromWSALastError(WSAGetLastError()));
   } else {
-    INode New(reinterpret_cast<boost::winapi::HANDLE_>(NewSock));
+    INode New(reinterpret_cast<winapi::HANDLE_>(NewSock));
     return New;
   }
 }
@@ -1873,7 +1890,7 @@ WasiExpect<INode> INode::sockAccept() noexcept {
       unlikely(NewSock == INVALID_SOCKET)) {
     return WasiUnexpect(fromWSALastError(WSAGetLastError()));
   } else {
-    INode New(reinterpret_cast<boost::winapi::HANDLE_>(NewSock));
+    INode New(reinterpret_cast<winapi::HANDLE_>(NewSock));
     return New;
   }
 }
@@ -2150,7 +2167,7 @@ __wasi_filetype_t INode::unsafeFiletype() const noexcept {
   // TODO: Find equivalents to the other file types
   // To be completed along with other similar functions
 
-  if (unlikely(GetFileInformationByHandle(Handle, &(*FileInfo))) == FALSE) {
+  if (unlikely(GetFileInformationByHandle(Handle, &(*FileInfo)) == 0)) {
     return __WASI_FILETYPE_UNKNOWN;
   }
   return fromFileType((*FileInfo).dwFileAttributes, GetFileType(Handle));
@@ -2166,20 +2183,20 @@ WasiExpect<__wasi_filetype_t> INode::filetype() const noexcept {
 
 WasiExpect<void> INode::updateFileInfo() const noexcept {
   FileInfo.emplace();
-  if (unlikely(GetFileInformationByHandle(Handle, &(*FileInfo)) == FALSE)) {
-    return WasiUnexpect(fromWinError(GetLastError()));
+  if (unlikely(GetFileInformationByHandle(Handle, &(*FileInfo)) == 0)) {
+    return WasiUnexpect(fromWinError(winapi::GetLastError()));
   }
   return {};
 }
 
 bool INode::isDirectory() const noexcept {
   updateFileInfo();
-  return (*FileInfo).dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY;
+  return FileInfo->dwFileAttributes == winapi::FILE_ATTRIBUTE_DIRECTORY_;
 }
 
 bool INode::isSymlink() const noexcept {
   updateFileInfo();
-  return (*FileInfo).dwFileAttributes == FILE_ATTRIBUTE_REPARSE_POINT;
+  return FileInfo->dwFileAttributes == winapi::FILE_ATTRIBUTE_REPARSE_POINT_;
 }
 
 WasiExpect<__wasi_filesize_t> INode::filesize() const noexcept {

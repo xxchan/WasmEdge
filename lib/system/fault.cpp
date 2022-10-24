@@ -34,8 +34,6 @@ BOOST_WINAPI_IMPORT boost::winapi::ULONG_ BOOST_WINAPI_WINAPI_CC
 RemoveVectoredExceptionHandler(boost::winapi::PVOID_ Handle);
 }
 #else
-#include <windows.h>
-
 #include <errhandlingapi.h>
 #include <winnt.h>
 #endif
